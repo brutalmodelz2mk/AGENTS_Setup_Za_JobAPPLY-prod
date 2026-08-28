@@ -75,14 +75,16 @@ def _normalize_analysis(raw: dict[str, Any]) -> dict[str, Any]:
             a = str(arrangement).lower()
             remote_type = "remote" if "remote" in a else ("hybrid" if "hybrid" in a else "on-site")
 
-    # salary normalization
+    # salary normalization (handle both top-level and nested salary dict)
     salary_min = first("salary_min", "min_salary")
     salary_max = first("salary_max", "max_salary")
     if salary_min is None or salary_max is None:
         sal = first("salary")
         if isinstance(sal, dict):
-            salary_min = salary_min or first("salary_min", "min", "low")
-            salary_max = salary_max or first("salary_max", "max", "high")
+            salary_min = salary_min or sal.get("min") or sal.get("low") or sal.get("min_salary")
+            salary_max = salary_max or sal.get("max") or sal.get("high") or sal.get("max_salary")
+        elif isinstance(sal, (int, float)):
+            salary_min = salary_min or float(sal)
 
     return {
         "title": first("title", "role", "job_title"),
