@@ -7,6 +7,19 @@ from app.database.supabase import get_supabase
 from app.models.profile import UserProfile
 
 
+def _ensure_user(user_id: str, email: str | None = None) -> None:
+    """Make sure a matching `users` row exists for the auth user (idempotent).
+
+    The `users` table mirrors auth.users; a user_profile FK requires it. This
+    keeps the repo self-sufficient without a DB trigger.
+    """
+    client = get_supabase()
+    payload: dict[str, Any] = {"id": user_id}
+    if email:
+        payload["email"] = email
+    client.table("users").upsert(payload, on_conflict="id").execute()
+
+
 def get_profile(user_id: str) -> UserProfile | None:
     client = get_supabase()
     data = (
@@ -23,6 +36,7 @@ def get_profile(user_id: str) -> UserProfile | None:
 
 
 def upsert_profile(profile: UserProfile) -> dict[str, Any]:
+    _ensure_user(profile.user_id, profile.email)
     client = get_supabase()
     payload = profile.model_dump()
     payload.pop("user_id", None)
