@@ -30,12 +30,21 @@ python setup_box.py
 
 ## Notes / caveats
 
-- **Free tier** boxes are **ephemeral** (auto-delete after the session) and
-  **cannot** use `init_command`/keep-alive. For a persistent box + auto-restart
-  init script (`hermes gateway start > gateway.log 2>&1 &`), add a payment
-  method at https://console.upstash.com → Billing and set `keep_alive=True`.
-- **Agent LLM latency**: free-tier OpenRouter models are congested; the agent
-  call may be slow. Prefer a paid/priority model or `openrouter/free`.
-- `box.agent.run()` (python-sdk 0.3.0) can hit a 0.1s read-timeout on the
-  stream — retrieve agent output via `opencode run` (exec) or the TS SDK if so.
-- The box key `box_...` is per-box; the account API key cannot create/list boxes.
+- **Free tier** limits: 10 concurrent boxes, 2 CPU / 4 GB / 5 GB storage, 5 CPU
+  hours/month, **1-hour idle timeout**, then the box shuts down. `keep_alive`
+  and `init_command` are disabled on the free tier.
+- For a persistent box + auto-restart init script
+  (`hermes gateway start > gateway.log 2>&1 &`), add a payment method at
+  https://console.upstash.com → Billing and set `keep_alive=True`.
+- **Agent LLM**: the OpenCode harness is installed and picks up `OPENROUTER_API_KEY`.
+  The verification uses `opencode run -m openrouter/<model>` executed inside the
+  box (the SDK's `box.agent.run()` stream can time out on free-tier latency).
+- The box key `box_...` is used to create/list boxes; the account API key is for
+  the Upstash REST/developer API.
+
+## Live test
+
+```bash
+curl https://<box-id>-8080.preview.box.upstash.com/
+# expected: <h1>Dzvonko Upstash Box is LIVE</h1><p>id=<box-id></p>
+```

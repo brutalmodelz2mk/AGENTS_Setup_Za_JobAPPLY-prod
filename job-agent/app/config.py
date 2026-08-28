@@ -58,6 +58,15 @@ class Settings(BaseSettings):
     browser_headless: bool = True
     browser_timeout_ms: int = 15_000
 
+    # --- Upstash (Phase 8 optimization + Box runtime) ---
+    upstash_redis_url: str = ""
+    upstash_redis_token: str = ""
+
+    @property
+    def is_redis_configured(self) -> bool:
+        """True when an Upstash Redis REST URL + token are present."""
+        return bool(self.upstash_redis_url.strip() and self.upstash_redis_token.strip())
+
     # --- Branding ---
     agent_name: str = "Dzvonko"
     x_title: str = "Za JobAPPLY"

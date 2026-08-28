@@ -91,13 +91,25 @@ def main() -> int:
     check("skills", lambda: ",".join(b.skills.list()[:6]))
     check("public.url", lambda: str(b.get_public_url(8080)))
 
-    # Agent -> LLM (note: free-tier models are latency-bound)
+    # Agent -> LLM via opencode harness CLI. The box auto-sets OPENROUTER_API_KEY
+    # from the agent{} block; we explicitly request the configured OpenRouter model.
     def agent() -> str:
-        t = time.time()
-        run = b.agent.run(prompt="Reply with exactly: BOX_AGENT_OK", timeout=60)
-        out = getattr(run, "output", None) or getattr(run, "result", None)
-        return f"{round(time.time() - t, 1)}s -> {str(out)[:80]}"
-    check("agent.run", agent)
+        key = os.environ.get("OPENROUTER_API_KEY", "")
+        test_script = f"""import subprocess, os
+os.environ["OPENROUTER_API_KEY"] = "{key}"
+res = subprocess.run([
+    "timeout", "120", "opencode", "run",
+    "-m", "{MODEL}",
+    "Reply with exactly: DZVONKO_AGENT_OK"
+], capture_output=True, text=True, timeout=125)
+print("EXIT", res.returncode)
+print("MODEL_USED", (res.stderr or "").splitlines()[0] if res.stderr else "")
+"""
+        b.files.write(path="/tmp/agent_check.py", content=test_script)
+        r = b.exec.command("python3 /tmp/agent_check.py")
+        out = (r.stdout or "").strip()
+        return out[:120]
+    check("agent.llm", agent)
 
     print("\nLIVE_URL:", b.get_public_url(8080).url)
     print("BOX_ID:", bid)
