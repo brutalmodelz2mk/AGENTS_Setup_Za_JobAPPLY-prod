@@ -88,13 +88,22 @@ curl -X POST http://127.0.0.1:8080/runs \
 
 ## Database (Phase 2)
 
-Apply the schema to the `AGENT_Dzvonko-DB` project once:
+Apply the schema to the `AGENT_Dzvonko-DB` project once (any one of):
 
-- Supabase Dashboard → SQL Editor → run `supabase/migrations/0001_schema.sql`, **or**
-- `supabase link` + `supabase db push` (needs DB credentials / access token).
+1. Supabase Dashboard → SQL Editor → paste `supabase/migrations/0001_schema.sql`, or
+2. Management API (needs a `sbp_…` token from
+   https://supabase.com/dashboard/account/tokens):
+
+   ```bash
+   SUPABASE_ACCESS_TOKEN=sbp_... python scripts/apply_migration.py
+   ```
 
 Tables: `users`, `user_profiles`, `job_sources`, `jobs`, `job_matches`,
 `applications`, `application_events`, `agent_runs`, `email_messages`.
+
+> Note: the hosted Supabase MCP (`mcp.supabase.com`) requires OAuth/sbp_ auth;
+> `scripts/apply_migration.py` is the token-based path. `sb_secret…` keys are
+> PostgREST keys and cannot run DDL.
 
 ## Tests
 
