@@ -47,6 +47,59 @@ EXTRACTION_SCHEMA = {
 }
 
 
+def _normalize_analysis(raw: dict[str, Any]) -> dict[str, Any]:
+    """Map a model's job-analysis dict onto our canonical schema.
+
+    Free-tier OpenRouter models frequently ignore strict json_schema and return
+    their own field names. We tolerate aliases and always set missing fields to
+    None (never guessed) so scoring/downstream stay deterministic.
+    """
+    def first(*keys: str) -> Any:
+        for k in keys:
+            for kk in (k, k.lower(), k.upper(), k.replace("-", "_").lower()):
+                if kk in raw and raw[kk] not in (None, ""):
+                    return raw[kk]
+        return None
+
+    # remote_type normalization
+    remote_type = first("remote_type")
+    if not remote_type:
+        rem = first("remote")
+        if isinstance(rem, bool):
+            remote_type = "remote" if rem else "on-site"
+        elif rem:
+            remote_type = str(rem).lower()
+    if not remote_type:
+        arrangement = first("work_arrangement", "work_model", "working_model")
+        if arrangement:
+            a = str(arrangement).lower()
+            remote_type = "remote" if "remote" in a else ("hybrid" if "hybrid" in a else "on-site")
+
+    # salary normalization
+    salary_min = first("salary_min", "min_salary")
+    salary_max = first("salary_max", "max_salary")
+    if salary_min is None or salary_max is None:
+        sal = first("salary")
+        if isinstance(sal, dict):
+            salary_min = salary_min or first("salary_min", "min", "low")
+            salary_max = salary_max or first("salary_max", "max", "high")
+
+    return {
+        "title": first("title", "role", "job_title"),
+        "company": first("company", "company_name", "organization"),
+        "location": first("location", "site", "city"),
+        "remote_type": remote_type,
+        "employment_type": first("employment_type", "job_type", "type", "contract_type"),
+        "salary_min": salary_min,
+        "salary_max": salary_max,
+        "required_skills": [s for s in (first("required_skills", "required_skill", "skills", "must_have") or []) if s],
+        "preferred_skills": [s for s in (first("preferred_skills", "preferred_skill", "nice_to_have", "skills") or []) if s],
+        "experience_requirement": first("experience_requirement", "experience_required", "experience", "years_experience"),
+        "education_requirement": first("education_requirement", "education_required", "education"),
+        "application_url": first("application_url", "url", "apply_url", "application_link"),
+    }
+
+
 def _structure_preserving(job: dict[str, Any]) -> dict[str, Any]:
     """Fallback: keep known fields, all else null. Never guesses."""
     skills = job.get("skills") or []
@@ -77,29 +130,37 @@ async def analyze_job(state: AgentState) -> AgentState:
         job = {"source": state.get("source", "manual"), **job}
 
     if settings.is_llm_configured and job.get("description"):
+        extract_model = settings.model_extraction or settings.openrouter_model
+        sys_msg = (
+            "Extract structured job facts from the description. Return a JSON object. "
+            "Use ONLY these exact keys, null for anything unknown, never invent: "
+            "title, company, location, remote_type, employment_type, salary_min, "
+            "salary_max, required_skills, preferred_skills, experience_requirement, "
+            "education_requirement, application_url."
+        )
+        msgs = [
+            {"role": "system", "content": sys_msg},
+            {"role": "user", "content": str(job.get("description"))},
+        ]
+        analysis = None
         try:
             analysis = await default_client.chat_schema(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "Extract structured job facts from the description. "
-                            "Return ONLY facts present in the text; use null for "
-                            "anything unknown. Never infer or guess."
-                        ),
-                    },
-                    {"role": "user", "content": str(job.get("description"))},
-                ],
-                schema=EXTRACTION_SCHEMA,
-                model=settings.model_extraction or settings.openrouter_model,
+                messages=msgs, schema=EXTRACTION_SCHEMA, model=extract_model
             )
-            # Prefer the strict LLM output but keep the probe URL if known.
-            if not analysis.get("application_url") and job.get("url"):
-                analysis["application_url"] = job["url"]
-        except LLMError as exc:
-            logger.warning("LLM extraction failed, falling back: %s", exc)
-            analysis = _structure_preserving(job)
+        except LLMError:
+            try:
+                analysis = await default_client.chat_json(
+                    messages=msgs, model=extract_model
+                )
+            except LLMError as exc:
+                logger.warning("LLM extraction failed, falling back: %s", exc)
+                analysis = _structure_preserving(job)
     else:
         analysis = _structure_preserving(job)
+
+    analysis = _normalize_analysis(analysis)
+    # Prefer the probe URL if the model didn't recover it.
+    if not analysis.get("application_url") and job.get("url"):
+        analysis["application_url"] = job["url"]
 
     return {"selected_job": job, "job_analysis": analysis}
