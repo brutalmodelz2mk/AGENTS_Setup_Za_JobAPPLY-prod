@@ -1,0 +1,23 @@
+# Cloud Build config for Dzvonko (spec §13).
+# Builds the job-agent image and pushes to Artifact Registry.
+# Cloud Run's "Continuously deploy from GitHub" picks this up automatically.
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "gcr.io/$PROJECT_ID/dzvonko:$COMMIT_SHA"
+      - "-f"
+      - "./job-agent/Dockerfile"
+      - "./job-agent"
+
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "gcr.io/$PROJECT_ID/dzvonko:$COMMIT_SHA"
+
+images:
+  - "gcr.io/$PROJECT_ID/dzvonko:$COMMIT_SHA"
+
+options:
+  logging: CLOUD_LOGGING_ONLY

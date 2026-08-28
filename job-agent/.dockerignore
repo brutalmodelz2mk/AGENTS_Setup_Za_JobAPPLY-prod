@@ -1,0 +1,20 @@
+# Never bake secrets or dev artifacts into the image
+.env
+.env.*
+api_keys.json
+AGENTS_SETUP.md
+*apikey*.txt
+*apikeys*.txt
+*.pem
+*.key
+.git
+.gitignore
+.pytest_cache
+__pycache__
+*.pyc
+.venv
+venv
+tests
+scripts/apply_migration.py
+conftest.py
+README.md
