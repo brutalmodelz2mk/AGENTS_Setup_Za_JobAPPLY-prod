@@ -1,0 +1,39 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+
+# --- Environment / secrets (never commit) ---
+.env
+.env.*
+!.env.example
+api_keys.json
+AGENTS_SETUP.md
+*apikey*.txt
+*apikeys*.txt
+*.pem
+*.key
+
+# --- Test / coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Tooling ---
+.idea/
+.vscode/
+.DS_Store
+node_modules/
+
+# --- Logs ---
+*.log
+gateway.log
+
+# --- Playwright ---
+# Browsers are installed into the image, not committed.

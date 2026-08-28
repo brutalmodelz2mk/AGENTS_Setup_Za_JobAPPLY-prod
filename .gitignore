@@ -1,0 +1,21 @@
+# --- Secrets: never commit anything sensitive ---
+api_keys.json
+AGENTS_SETUP.md
+*apikey*.txt
+*apikeys*.txt
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+gateway.log
+
+# --- Agent/runtime ---
+job-agent/.venv/
+job-agent/**/__pycache__/
+job-agent/.pytest_cache/
+.venv/
+__pycache__/
+.pytest_cache/
+.DS_Store
+node_modules/

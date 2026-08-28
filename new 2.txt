@@ -1,0 +1,119 @@
+Checked AGENTS.md again ★ — here's what's needed to continue~ (◕‿◕) ♪
+
+Your folder C:\Users\Sitcd3\Downloads\AGENTS Setup - Za JobAPPLY\ currently has only AGENTS.md (spec). Zero code, zero config, zero DB — everything is still to build. But the spec is complete, so here's the gap vs. what it requires:
+
+1. Profiles — What's missing? (AGENTS.md §8)
+
+Spec requires user_profiles table linked to users, but you have no profile system yet.
+
+You need to create:
+sql
+users (id, email, created_at)
+user_profiles (
+  user_id FK,
+  full_name, email, phone, location,
+  title/role, summary/bio,
+  skills[], experience[], education[], certifications[],
+  languages, salary_expectations, remote_preference,
+  cv_url, portfolio_url, linkedin_url
+)
+
+Plus:
+- job_sources — where to discover from (LinkedIn API / Greenhouse / custom URLs + filters)
+- jobs, job_matches, applications, application_events, agent_runs, email_messages — per §8
+
+Missing now: all 8 tables, no Supabase project linked to this JobAPPLY agent, no RLS policies, no repository layer (app/database/repositories/).
+
+To configure: create Supabase project → run migration → set in .env:
+
+SUPABASE_URL=
+SUPABASE_ANON_KEY=      # frontend
+SUPABASE_SERVICE_ROLE_KEY= # server only
+
+
+2. Configuration — What's missing? (AGENTS.md §7,13)
+
+Missing file: app/config.py (Pydantic Settings) + .env.example + .env (gitignored)
+
+You need to create/env:
+
+OPENROUTER_API_KEY=          # ✅ you HAVE (73 chars, verified 417 models)
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_MODEL= / MODEL_FAST / MODEL_REASONING / MODEL_EXTRACTION
+
+
+
+
+
+SUPABASE_*  (above) — ⚠️ not configured for JobAPPLY yet (you have robotceto keys but need new project)
+PORT=8080 / ENVIRONMENT / LOG_LEVEL  (for Cloud Run)
+
+later optional
+REDIS_URL=                   # Upstash — spec says NOT for MVP
+EMAIL provider (Gmail OAuth / SendGrid) — §10
+GOOGLE Secret Manager — for prod secrets
+
+
+3. Implementation order — What's missing per phase (AGENTS.md §23)
+
+Phase: Phase 1 Foundation
+Required to create: pyproject.toml Python 3.12+ venv, app/main.py FastAPI
+  health, app/agents/state.py TypedDict, app/llm/openrouter.py,
+  app/config.py
+Status: ❌ Missing
+────────────────────────────────────────
+Phase: Phase 2 Database
+Required to create: Supabase project + schema + app/database/supabase.py +
+  repositories
+Status: ❌ Missing
+────────────────────────────────────────
+Phase: Phase 3 Job Pipeline
+Required to create: nodes/discovery.py, analysis.py, scoring.py,
+  normalization + dedup
+Status: ❌ Missing
+────────────────────────────────────────
+Phase: Phase 4 Application
+Required to create: User profile CRUD, CV/cover generation, question
+  answers, human_review endpoint
+Status: ❌ Missing — this is the profile completion blocker
+────────────────────────────────────────
+Phase: Phase 5 Browser
+Required to create: browser/playwright_client.py, selectors.py,
+  fill/validate, screenshot on fail, CAPTCHA stop, human_confirm_submit
+Status: ❌ Missing (Playwright 1.61 installed but no service)
+────────────────────────────────────────
+Phase: Phase 6 Email
+Required to create: Provider API + draft + approval + send + Supabase log
+Status: ❌ Missing
+────────────────────────────────────────
+Phase: Phase 7 Cloud
+Required to create: Dockerfile, docker-compose.yml, Artifact Registry,
+  Cloud Run deploy, Secret Manager, Cloud Scheduler
+Status: ❌ Missing (Docker 29.5 ready, gcloud CLI not installed)
+────────────────────────────────────────
+Phase: Phase 8 Optimization
+Required to create: Redis, queues, caching
+Status: ⏸️ Skip for MVP per spec
+
+4. What you need to create NOW to unblock profiles
+
+1. Supabase project for JobAPPLY + run SQL for 8 tables (§8 fields)
+2. app/models/profile.py (Pydantic) — validate profile input, forbid invented facts (§5)
+3. app/api/routes/profiles.py — POST /profiles, GET /profiles/{user_id}, PUT — persists to Supabase
+4. .env + app/config.py — wire OpenRouter + Supabase keys
+5. app/agents/state.py — AgentState TypedDict (§6) — keeps user_id + application_data small/serializable, no secrets inside
+6. Seed one real profile — your actual CV data (source of truth per §5) — agent will never invent employment/education
+
+5. Analysis of what you HAVE vs stack (§2)
+
+✅ Have: Python 3.14, FastAPI 0.136, Playwright 1.61, Docker 29.5, OpenRouter key, GitHub (3 accounts, need gh auth login), Wrangler/Cloudflare
+⚠️ Need: LangGraph (pip install langgraph), Supabase JobAPPLY project, GCP project for Cloud Run/Scheduler/Secrets, Email provider creds
+
+Want me to scaffold Phase 1+2 now? I can create:
+- job-agent/ structure per §11
+- supabase/migrations/001_schema.sql (all tables)
+- app/config.py + .env.example
+- app/agents/state.py + graph.py skeleton
+- FastAPI health + profile CRUD
+
+Just say scaffold and I'll generate it in C:\Users\Sitcd3\Downloads\AGENTS Setup - Za JobAPPLY\job-agent\~
